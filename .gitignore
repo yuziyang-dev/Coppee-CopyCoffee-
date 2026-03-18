@@ -1,0 +1,26 @@
+# Temp & cache
+temp/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Environment & secrets
+.env
+*.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Output
+output/
+*.mp3
+*.mp4
+*.wav

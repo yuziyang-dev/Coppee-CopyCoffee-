@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>手冲方案卡 — 从小红书提取冲煮参数</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700;900&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+
+:root {
+  --bg: #f5f0eb;
+  --bg-card: #fffdf9;
+  --espresso: #2c1810;
+  --espresso-soft: #5c4033;
+  --espresso-muted: #a08070;
+  --crema: #d4a574;
+  --crema-soft: rgba(212,165,116,.12);
+  --crema-glow: rgba(212,165,116,.25);
+  --latte: #e8ddd0;
+  --green: #5a7a60;
+  --green-soft: rgba(90,122,96,.1);
+  --border: rgba(44,24,16,.08);
+  --border-strong: rgba(44,24,16,.14);
+  --shadow-sm: 0 1px 3px rgba(44,24,16,.06);
+  --shadow-md: 0 4px 20px rgba(44,24,16,.08);
+  --shadow-lg: 0 8px 40px rgba(44,24,16,.12);
+  --radius: 14px;
+  --font-display: 'Noto Serif SC', 'Songti SC', serif;
+  --font-body: 'DM Sans', -apple-system, 'PingFang SC', sans-serif;
+}
+
+html { font-size: 16px; -webkit-font-smoothing: antialiased; }
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--espresso);
+  min-height: 100vh;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 70% 50% at 30% 0%, rgba(212,165,116,.06), transparent),
+    radial-gradient(ellipse 50% 50% at 80% 100%, rgba(90,122,96,.04), transparent);
+  pointer-events: none;
+}
+
+.container { max-width: 640px; margin: 0 auto; padding: 0 20px; position: relative; z-index: 1; }
+
+/* ─── Header ─── */
+header { padding: 52px 0 40px; text-align: center; }
+
+.logo { display: inline-flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+
+.logo-icon {
+  width: 42px; height: 42px;
+  background: var(--espresso);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; color: var(--crema);
+  box-shadow: 0 2px 12px rgba(44,24,16,.2);
+}
+
+.logo-text {
+  font-family: var(--font-display);
+  font-size: 26px; font-weight: 700;
+  letter-spacing: 1px; color: var(--espresso);
+}
+
+.tagline { font-size: 14px; color: var(--espresso-muted); font-weight: 300; letter-spacing: .5px; }
+
+/* ─── Settings Toggle ─── */
+.settings-toggle {
+  position: absolute; top: 56px; right: 20px;
+  width: 34px; height: 34px; border-radius: 50%;
+  border: 1px solid var(--border); background: var(--bg-card);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all .2s; box-shadow: var(--shadow-sm);
+}
+.settings-toggle:hover { border-color: var(--border-strong); box-shadow: var(--shadow-md); }
+.settings-toggle svg { width: 16px; height: 16px; color: var(--espresso-muted); }
+
+/* ─── Input ─── */
+.input-section { margin-bottom: 28px; }
+
+.input-card {
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  transition: box-shadow .3s, border-color .3s;
+}
+.input-card:focus-within { border-color: var(--crema); box-shadow: 0 0 0 3px var(--crema-soft), var(--shadow-md); }
+
+.link-input {
+  width: 100%; padding: 18px 22px 14px;
+  border: none; outline: none;
+  font-size: 15px; font-family: var(--font-body);
+  color: var(--espresso); background: transparent;
+  resize: none; line-height: 1.6;
+}
+.link-input::placeholder { color: var(--espresso-muted); font-weight: 300; }
+
+.input-divider { height: 1px; background: var(--border); margin: 0 22px; }
+
+.instruction-input {
+  width: 100%; padding: 12px 22px 14px;
+  border: none; outline: none;
+  font-size: 13px; font-family: var(--font-body);
+  color: var(--espresso-soft); background: transparent;
+  resize: none; line-height: 1.5;
+}
+.instruction-input::placeholder { color: var(--espresso-muted); font-weight: 300; }
+
+.bottom-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 18px 14px; gap: 12px;
+}
+
+.model-select-wrap { position: relative; flex: 1; min-width: 0; }
+
+.model-select {
+  appearance: none; -webkit-appearance: none;
+  width: 100%; padding: 7px 28px 7px 10px;
+  border: 1px solid var(--border-strong); border-radius: 8px;
+  background: var(--bg); font-family: var(--font-body);
+  font-size: 11px; color: var(--espresso-muted);
+  cursor: pointer; outline: none;
+  transition: border-color .2s;
+  text-overflow: ellipsis;
+}
+.model-select:focus { border-color: var(--crema); }
+
+.model-select-wrap::after {
+  content: ''; position: absolute; right: 10px; top: 50%;
+  transform: translateY(-50%);
+  border-left: 3px solid transparent; border-right: 3px solid transparent;
+  border-top: 4px solid var(--espresso-muted); pointer-events: none;
+}
+
+.submit-btn {
+  appearance: none; border: none;
+  padding: 8px 28px; border-radius: 8px;
+  background: var(--espresso); color: var(--crema);
+  font-size: 13px; font-weight: 500;
+  font-family: var(--font-body);
+  cursor: pointer; transition: all .2s;
+  letter-spacing: .5px; white-space: nowrap;
+}
+.submit-btn:hover { background: #3d251a; transform: translateY(-1px); box-shadow: var(--shadow-md); }
+.submit-btn:disabled { opacity: .35; cursor: not-allowed; transform: none; box-shadow: none; }
+
+/* ─── Progress ─── */
+.progress-section { margin-bottom: 32px; display: none; }
+.progress-section.active { display: block; }
+
+.progress-card {
+  background: var(--bg-card); border-radius: var(--radius);
+  border: 1px solid var(--border); box-shadow: var(--shadow-sm);
+  padding: 24px 28px;
+}
+
+.progress-title { font-family: var(--font-display); font-size: 14px; font-weight: 600; margin-bottom: 20px; }
+
+.step-list { list-style: none; display: flex; flex-direction: column; gap: 14px; }
+
+.step-item { display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--espresso-muted); transition: color .4s; }
+.step-item.active { color: var(--espresso); }
+.step-item.done { color: var(--green); }
+
+.step-icon {
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 2px solid var(--border-strong);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: all .4s; font-size: 10px;
+}
+
+.step-item.active .step-icon { border-color: var(--crema); background: var(--crema-soft); }
+.step-item.active .step-icon::after {
+  content: ''; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--crema); animation: pulse 1.2s ease-in-out infinite;
+}
+.step-item.done .step-icon { border-color: var(--green); background: var(--green); color: #fff; }
+.step-item.done .step-icon::after { content: '✓'; animation: none; font-weight: 700; font-size: 11px; }
+
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.6)} }
+
+/* ─── Error ─── */
+.error-section { margin-bottom: 28px; display: none; }
+.error-section.active { display: block; }
+.error-card {
+  background: #fdf5f3; border: 1px solid rgba(180,60,40,.12);
+  border-radius: var(--radius); padding: 18px 22px;
+  color: #a0422e; font-size: 13px; line-height: 1.7;
+}
+.error-card strong { display: block; margin-bottom: 3px; font-weight: 600; }
+
+/* ─── Brew Card Result ─── */
+.result-section { margin-bottom: 60px; display: none; }
+.result-section.active { display: block; animation: fadeUp .5s cubic-bezier(.16,1,.3,1); }
+
+@keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+
+.brew-card {
+  background: var(--bg-card);
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+
+.brew-header {
+  padding: 32px 32px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.brew-meta {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 10px; font-size: 11px; color: var(--espresso-muted);
+  text-transform: uppercase; letter-spacing: 1px; font-weight: 500;
+}
+
+.brew-title {
+  font-family: var(--font-display);
+  font-size: 22px; font-weight: 700; line-height: 1.5;
+  color: var(--espresso); margin-bottom: 6px;
+}
+
+.brew-summary { font-size: 14px; color: var(--espresso-soft); line-height: 1.7; }
+
+/* ─── Params Grid ─── */
+.params-section { padding: 24px 32px; border-bottom: 1px solid var(--border); }
+
+.section-title {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 2px;
+  color: var(--crema); font-weight: 600; margin-bottom: 16px;
+}
+
+.params-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+  background: var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.param-cell {
+  background: var(--bg-card);
+  padding: 14px 16px;
+  text-align: center;
+}
+
+.param-value {
+  font-family: var(--font-display);
+  font-size: 18px; font-weight: 700;
+  color: var(--espresso);
+  margin-bottom: 2px;
+  line-height: 1.3;
+}
+
+.param-label {
+  font-size: 10px; color: var(--espresso-muted);
+  text-transform: uppercase; letter-spacing: 1px;
+  font-weight: 500;
+}
+
+/* ─── Bean / Equipment info ─── */
+.info-row {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  padding: 0;
+}
+
+.info-tag {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 12px; border-radius: 20px;
+  font-size: 12px; font-weight: 400;
+  background: var(--crema-soft); color: var(--espresso-soft);
+  border: 1px solid rgba(212,165,116,.15);
+}
+
+.info-tag .label { font-weight: 500; color: var(--espresso-muted); font-size: 10px; text-transform: uppercase; letter-spacing: .5px; }
+
+/* ─── Pour Steps ─── */
+.steps-section { padding: 24px 32px; border-bottom: 1px solid var(--border); }
+
+.pour-timeline { display: flex; flex-direction: column; gap: 0; position: relative; }
+
+.pour-step {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 16px;
+  padding: 14px 0;
+  position: relative;
+}
+
+.pour-step:not(:last-child) { border-bottom: 1px dashed var(--border); }
+
+.pour-time {
+  font-family: var(--font-display);
+  font-size: 13px; font-weight: 600;
+  color: var(--crema);
+  padding-top: 2px;
+}
+
+.pour-detail { font-size: 13px; line-height: 1.6; color: var(--espresso-soft); }
+
+.pour-stage {
+  font-weight: 600; color: var(--espresso);
+  margin-right: 6px;
+}
+
+.pour-water {
+  display: inline-block;
+  padding: 1px 8px; border-radius: 4px;
+  background: var(--crema-soft); color: var(--espresso-soft);
+  font-size: 11px; font-weight: 500;
+  margin-left: 4px;
+}
+
+/* ─── Flavor & Tips ─── */
+.flavor-section { padding: 24px 32px; border-bottom: 1px solid var(--border); }
+
+.flavor-text { font-size: 14px; line-height: 1.8; color: var(--espresso-soft); font-style: italic; }
+
+.tips-box {
+  margin-top: 16px; padding: 14px 18px;
+  background: var(--green-soft); border-radius: 10px;
+  border-left: 3px solid var(--green);
+}
+
+.tips-label {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px;
+  color: var(--green); font-weight: 600; margin-bottom: 6px;
+}
+
+.tips-text { font-size: 13px; line-height: 1.7; color: var(--espresso-soft); }
+
+/* ─── Card Footer ─── */
+.brew-footer {
+  padding: 16px 32px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+
+.brew-footer-left { display: flex; align-items: center; gap: 14px; }
+
+.brew-author { font-size: 12px; color: var(--espresso-muted); }
+
+.source-link {
+  font-size: 11px; color: var(--espresso-muted);
+  text-decoration: none; border-bottom: 1px dashed var(--border-strong);
+}
+.source-link:hover { color: var(--crema); }
+
+.brew-model {
+  font-size: 10px; color: var(--espresso-muted);
+  padding: 2px 8px; border-radius: 4px;
+  background: rgba(44,24,16,.03); border: 1px solid var(--border);
+}
+
+.copy-btn {
+  appearance: none; border: 1px solid var(--border-strong);
+  background: transparent; padding: 6px 14px; border-radius: 6px;
+  font-size: 11px; color: var(--espresso-soft);
+  cursor: pointer; font-family: var(--font-body); font-weight: 500;
+  transition: all .2s;
+}
+.copy-btn:hover { background: var(--espresso); color: var(--crema); border-color: var(--espresso); }
+
+/* ─── Settings Modal ─── */
+.settings-overlay {
+  position: fixed; inset: 0;
+  background: rgba(44,24,16,.3); backdrop-filter: blur(4px);
+  z-index: 100; display: none; align-items: center; justify-content: center;
+}
+.settings-overlay.active { display: flex; }
+
+.settings-panel {
+  background: var(--bg-card); border-radius: 16px;
+  box-shadow: 0 24px 80px rgba(44,24,16,.2);
+  width: 90%; max-width: 440px; padding: 32px;
+  position: relative;
+  animation: fadeUp .3s cubic-bezier(.16,1,.3,1);
+}
+
+.settings-close {
+  position: absolute; top: 14px; right: 14px;
+  width: 26px; height: 26px; border: none; background: none;
+  cursor: pointer; color: var(--espresso-muted); font-size: 17px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 6px;
+}
+.settings-close:hover { background: rgba(44,24,16,.06); }
+
+.settings-title { font-family: var(--font-display); font-size: 17px; font-weight: 700; margin-bottom: 6px; }
+
+.settings-desc { font-size: 12px; color: var(--espresso-muted); margin-bottom: 22px; line-height: 1.6; }
+.settings-desc a { color: var(--crema); text-decoration: none; border-bottom: 1px solid rgba(212,165,116,.3); }
+
+.settings-status {
+  display: flex; align-items: center; gap: 7px;
+  margin-bottom: 20px; font-size: 11px; padding: 7px 11px; border-radius: 8px;
+}
+.settings-status.ok { background: var(--green-soft); color: var(--green); }
+.settings-status.missing { background: var(--crema-soft); color: #a0422e; }
+.settings-status-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.settings-status.ok .settings-status-dot { background: var(--green); }
+.settings-status.missing .settings-status-dot { background: #a0422e; }
+
+.field-group { margin-bottom: 16px; }
+.field-label { font-size: 11px; font-weight: 600; color: var(--espresso-soft); margin-bottom: 5px; }
+.field-input {
+  width: 100%; padding: 9px 12px;
+  border: 1px solid var(--border-strong); border-radius: 8px;
+  font-size: 12px; font-family: 'SF Mono', 'Menlo', monospace;
+  color: var(--espresso); background: var(--bg); outline: none;
+  transition: border-color .2s;
+}
+.field-input:focus { border-color: var(--crema); box-shadow: 0 0 0 3px var(--crema-soft); }
+.field-hint { font-size: 10px; color: var(--espresso-muted); margin-top: 3px; }
+
+.settings-save {
+  appearance: none; border: none; width: 100%; padding: 10px;
+  border-radius: 8px; background: var(--espresso); color: var(--crema);
+  font-size: 13px; font-weight: 500; font-family: var(--font-body);
+  cursor: pointer; transition: all .2s;
+}
+.settings-save:hover { background: #3d251a; }
+
+/* ─── Toast ─── */
+.settings-toast {
+  position: fixed; bottom: 28px; left: 50%;
+  transform: translateX(-50%) translateY(16px);
+  background: var(--espresso); color: var(--crema);
+  padding: 9px 22px; border-radius: 8px;
+  font-size: 12px; font-weight: 500;
+  box-shadow: var(--shadow-lg);
+  opacity: 0; transition: all .3s;
+  z-index: 200; pointer-events: none;
+}
+.settings-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ─── AI Inferred Indicator ─── */
+.param-cell.inferred { position: relative; }
+.param-cell.inferred .param-value { color: var(--crema); }
+.param-cell.inferred::after {
+  content: 'AI推理';
+  position: absolute; top: 6px; right: 6px;
+  font-size: 8px; font-weight: 600; letter-spacing: .5px;
+  padding: 1px 5px; border-radius: 3px;
+  background: var(--crema-soft); color: var(--crema);
+  text-transform: uppercase;
+}
+
+.info-tag.inferred {
+  border-style: dashed;
+  border-color: var(--crema);
+  background: rgba(212,165,116,.06);
+  position: relative;
+}
+.info-tag.inferred::after {
+  content: '·AI';
+  font-size: 8px; font-weight: 700;
+  color: var(--crema); margin-left: 3px;
+}
+
+.flavor-text.inferred, .tips-text.inferred {
+  position: relative;
+  padding-left: 0;
+}
+
+.pour-time.inferred {
+  position: relative;
+}
+.pour-time.inferred::after {
+  content: 'AI';
+  font-size: 7px; font-weight: 700;
+  color: var(--crema); margin-left: 4px;
+  vertical-align: super;
+}
+
+.inferred-legend {
+  display: flex; align-items: center; gap: 6px;
+  padding: 10px 32px 0;
+  font-size: 10px; color: var(--espresso-muted);
+}
+.inferred-legend-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--crema-soft); border: 1.5px dashed var(--crema);
+}
+
+/* ─── Footer ─── */
+footer { text-align: center; padding: 24px 0 40px; font-size: 11px; color: var(--espresso-muted); }
+
+/* ─── Responsive ─── */
+@media (max-width: 480px) {
+  header { padding: 36px 0 28px; }
+  .logo-text { font-size: 22px; }
+  .brew-header, .params-section, .steps-section, .flavor-section { padding-left: 20px; padding-right: 20px; }
+  .brew-footer { padding-left: 20px; padding-right: 20px; }
+  .params-grid { grid-template-columns: repeat(2, 1fr); }
+  .brew-title { font-size: 19px; }
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <button class="settings-toggle" onclick="openSettings()" title="API 设置">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+  </button>
+
+  <!-- Settings Modal -->
+  <div id="settingsOverlay" class="settings-overlay" onclick="if(event.target===this)closeSettings()">
+    <div class="settings-panel">
+      <button class="settings-close" onclick="closeSettings()">&times;</button>
+      <div class="settings-title">API 设置</div>
+      <div class="settings-desc">填入 <a href="https://jiekou.ai/settings/key-management" target="_blank">JieKou AI</a> API Key 以启用 AI 方案提取。</div>
+      <div id="settingsStatus" class="settings-status missing">
+        <span class="settings-status-dot"></span>
+        <span id="settingsStatusText">未配置</span>
+      </div>
+      <div class="field-group">
+        <div class="field-label">API Key</div>
+        <input id="apiKeyInput" class="field-input" type="password" placeholder="sk-xxx..." autocomplete="off">
+      </div>
+      <div class="field-group">
+        <div class="field-label">Base URL</div>
+        <input id="baseUrlInput" class="field-input" type="text" value="https://api.jiekou.ai/openai/v1">
+        <div class="field-hint">默认 JieKou AI，可改为其他 OpenAI 兼容服务</div>
+      </div>
+      <button class="settings-save" onclick="saveSettings()">保存配置</button>
+    </div>
+  </div>
+  <div id="toast" class="settings-toast"></div>
+
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">☕</div>
+      <div class="logo-text">手冲方案卡</div>
+    </div>
+    <p class="tagline">粘贴小红书链接，AI 提取冲煮参数</p>
+  </header>
+
+  <!-- Input -->
+  <section class="input-section">
+    <div class="input-card">
+      <textarea id="linkInput" class="link-input" rows="2"
+        placeholder="粘贴小红书/抖音上手冲咖啡方案的链接..."></textarea>
+      <div class="input-divider"></div>
+      <textarea id="instructionInput" class="instruction-input" rows="1"
+        placeholder="补充要求（可选）— 如：重点关注水温和注水手法"></textarea>
+      <div class="input-divider"></div>
+      <div class="bottom-row">
+        <div class="model-select-wrap">
+          <select id="modelSelect" class="model-select">
+            <optgroup label="推荐">
+              <option value="deepseek/deepseek-v3-0324" selected>DeepSeek V3</option>
+              <option value="deepseek/deepseek-r1-0528">DeepSeek R1</option>
+            </optgroup>
+            <optgroup label="通用">
+              <option value="qwen/qwen3-235b-a22b-instruct-2507">Qwen3 235B</option>
+              <option value="moonshotai/kimi-k2-instruct">Kimi K2</option>
+              <option value="openai/gpt-4o">GPT-4o</option>
+              <option value="anthropic/claude-sonnet-4-20250514">Claude Sonnet 4</option>
+            </optgroup>
+          </select>
+        </div>
+        <button id="submitBtn" class="submit-btn" onclick="handleSubmit()">提取方案</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Progress -->
+  <section id="progressSection" class="progress-section">
+    <div class="progress-card">
+      <div class="progress-title">正在提取方案...</div>
+      <ul class="step-list">
+        <li id="step-parse" class="step-item"><span class="step-icon"></span><span class="step-label">解析链接</span></li>
+        <li id="step-process" class="step-item"><span class="step-icon"></span><span class="step-label">提取音频 / 图文内容</span></li>
+        <li id="step-aggregate" class="step-item"><span class="step-icon"></span><span class="step-label">聚合文本</span></li>
+        <li id="step-summarize" class="step-item"><span class="step-icon"></span><span class="step-label">AI 精准提取参数</span></li>
+        <li id="step-infer" class="step-item"><span class="step-icon"></span><span class="step-label">AI 智能补全缺失</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- Error -->
+  <section id="errorSection" class="error-section">
+    <div class="error-card"><strong>提取失败</strong><span id="errorMessage"></span></div>
+  </section>
+
+  <!-- Result: Brew Card -->
+  <section id="resultSection" class="result-section">
+    <div class="brew-card">
+
+      <div class="brew-header">
+        <div class="brew-meta">
+          <span id="brewPlatform"></span>
+          <span id="brewAuthor"></span>
+        </div>
+        <h1 id="brewTitle" class="brew-title"></h1>
+        <p id="brewSummary" class="brew-summary"></p>
+      </div>
+
+      <!-- Core Params -->
+      <div class="params-section">
+        <div class="section-title">冲煮参数</div>
+        <div id="paramsGrid" class="params-grid"></div>
+      </div>
+
+      <!-- Bean & Equipment -->
+      <div id="infoSection" class="params-section" style="display:none">
+        <div class="section-title">咖啡豆 & 器具</div>
+        <div id="infoRow" class="info-row"></div>
+      </div>
+
+      <!-- Pour Steps -->
+      <div id="stepsSection" class="steps-section" style="display:none">
+        <div class="section-title">注水步骤</div>
+        <div id="pourTimeline" class="pour-timeline"></div>
+      </div>
+
+      <!-- Flavor & Tips -->
+      <div id="flavorSection" class="flavor-section" style="display:none">
+        <div id="flavorBlock"></div>
+        <div id="tipsBlock"></div>
+      </div>
+
+      <div class="brew-footer">
+        <div class="brew-footer-left">
+          <a id="sourceLink" class="source-link" href="#" target="_blank">查看原文</a>
+          <span id="brewModel" class="brew-model"></span>
+        </div>
+        <button class="copy-btn" onclick="copyCard()">复制方案</button>
+      </div>
+
+    </div>
+  </section>
+
+  <footer>手冲方案卡 · 从小红书提取冲煮参数</footer>
+
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const STEPS = ['parse', 'process', 'aggregate', 'summarize', 'infer'];
+let currentCard = null;
+
+function resetUI() {
+  $('progressSection').classList.remove('active');
+  $('errorSection').classList.remove('active');
+  $('resultSection').classList.remove('active');
+  STEPS.forEach(s => { const el = $('step-' + s); el.classList.remove('active', 'done'); });
+}
+
+function setStep(step) {
+  const idx = STEPS.indexOf(step);
+  STEPS.forEach((s, i) => {
+    const el = $('step-' + s);
+    el.classList.remove('active', 'done');
+    if (i < idx) el.classList.add('done');
+    else if (i === idx) el.classList.add('active');
+  });
+}
+
+function markAllDone() { STEPS.forEach(s => { $('step-' + s).classList.remove('active'); $('step-' + s).classList.add('done'); }); }
+
+async function handleSubmit() {
+  const link = $('linkInput').value.trim();
+  if (!link) { $('linkInput').focus(); return; }
+  const instruction = $('instructionInput').value.trim();
+  const model = $('modelSelect').value;
+  const btn = $('submitBtn');
+
+  resetUI();
+  btn.disabled = true; btn.textContent = '提取中...';
+  $('progressSection').classList.add('active');
+  setStep('parse');
+
+  try {
+    const res = await fetch('/api/process', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ link, instruction: instruction || '', model }),
+    });
+    const { task_id, error } = await res.json();
+    if (error) throw new Error(error);
+
+    const evtSource = new EventSource('/api/stream/' + task_id);
+    evtSource.onmessage = (e) => {
+      const event = JSON.parse(e.data);
+      if (event.type === 'progress') {
+        if (event.step === 'done') markAllDone();
+        else if (event.step !== 'start') setStep(event.step);
+      }
+      if (event.type === 'result') { currentCard = event.data; renderCard(event.data); }
+      if (event.type === 'error') {
+        $('errorMessage').textContent = event.message;
+        $('errorSection').classList.add('active');
+        $('progressSection').classList.remove('active');
+        evtSource.close(); btn.disabled = false; btn.textContent = '提取方案';
+      }
+      if (event.type === 'end') { evtSource.close(); btn.disabled = false; btn.textContent = '提取方案'; }
+    };
+    evtSource.onerror = () => { evtSource.close(); btn.disabled = false; btn.textContent = '提取方案'; };
+  } catch (err) {
+    $('errorMessage').textContent = err.message;
+    $('errorSection').classList.add('active');
+    $('progressSection').classList.remove('active');
+    btn.disabled = false; btn.textContent = '提取方案';
+  }
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+function renderCard(d) {
+  const inf = new Set(d.inferred_fields || []);
+  const isInf = (field) => inf.has(field);
+
+  const platforms = { xiaohongshu: '小红书', douyin: '抖音' };
+  $('brewPlatform').textContent = platforms[d.source_platform] || d.source_platform || '';
+  $('brewAuthor').textContent = d.author ? (' · @' + d.author) : '';
+  $('brewTitle').textContent = d.title || '手冲方案';
+  $('brewSummary').textContent = d.summary || '';
+
+  // Core params grid
+  const params = [
+    { v: d.dose, l: '粉量', f: 'dose' },
+    { v: d.water_amount, l: '水量', f: 'water_amount' },
+    { v: d.ratio, l: '粉水比', f: 'ratio' },
+    { v: d.water_temp, l: '水温', f: 'water_temp' },
+    { v: d.grind_size, l: '研磨度', f: 'grind_size' },
+    { v: d.total_time, l: '萃取时间', f: 'total_time' },
+  ].filter(p => p.v);
+
+  const grid = $('paramsGrid');
+  grid.innerHTML = '';
+  if (params.length) {
+    params.forEach(p => {
+      const cls = isInf(p.f) ? 'param-cell inferred' : 'param-cell';
+      grid.innerHTML += `<div class="${cls}"><div class="param-value">${esc(p.v)}</div><div class="param-label">${p.l}</div></div>`;
+    });
+  }
+
+  // Bean & Equipment info tags
+  const infoItems = [
+    { l: '滤杯', v: d.dripper, f: 'dripper' },
+    { l: '产地', v: d.origin, f: 'origin' },
+    { l: '烘焙', v: d.roast_level, f: 'roast_level' },
+    { l: '处理法', v: d.process, f: 'process' },
+    { l: '豆子', v: d.bean_name, f: 'bean_name' },
+    { l: '滤纸', v: d.filter_paper, f: 'filter_paper' },
+  ].filter(x => x.v);
+
+  const infoRow = $('infoRow');
+  infoRow.innerHTML = '';
+  if (infoItems.length) {
+    $('infoSection').style.display = '';
+    infoItems.forEach(x => {
+      const cls = isInf(x.f) ? 'info-tag inferred' : 'info-tag';
+      infoRow.innerHTML += `<span class="${cls}"><span class="label">${x.l}</span> ${esc(x.v)}</span>`;
+    });
+    if (d.equipment_notes) infoRow.innerHTML += `<span class="info-tag">${esc(d.equipment_notes)}</span>`;
+    if (d.bean_notes) {
+      const cls = isInf('bean_notes') ? 'info-tag inferred' : 'info-tag';
+      infoRow.innerHTML += `<span class="${cls}">${esc(d.bean_notes)}</span>`;
+    }
+  } else {
+    $('infoSection').style.display = 'none';
+  }
+
+  // Pour steps — normalize keys (LLM may return Chinese keys)
+  const timeline = $('pourTimeline');
+  timeline.innerHTML = '';
+  const normalizeStep = (s) => ({
+    stage: s.stage || s['阶段'] || s['阶段名'] || '',
+    water_ml: s.water_ml || s['水量'] || s['注水量'] || '',
+    time: s.time || s['时间'] || s['时间点'] || '',
+    technique: s.technique || s['手法'] || s['注水手法'] || s['技巧'] || '',
+    _inferred: s._inferred || [],
+  });
+  const steps = (d.pour_steps || []).map(normalizeStep).filter(s => s.stage || s.water_ml || s.time || s.technique);
+  if (steps.length) {
+    $('stepsSection').style.display = '';
+    steps.forEach(s => {
+      const timeInf = s._inferred.includes('time');
+      const timeCls = timeInf ? 'pour-time inferred' : 'pour-time';
+      let detail = `<span class="pour-stage">${esc(s.stage)}</span>`;
+      if (s.technique) detail += esc(s.technique);
+      if (s.water_ml) detail += `<span class="pour-water">${esc(s.water_ml)}</span>`;
+      timeline.innerHTML += `<div class="pour-step"><div class="${timeCls}">${esc(s.time)}</div><div class="pour-detail">${detail}</div></div>`;
+    });
+  } else {
+    $('stepsSection').style.display = 'none';
+  }
+
+  // Flavor & Tips
+  const flavorBlock = $('flavorBlock');
+  const tipsBlock = $('tipsBlock');
+  flavorBlock.innerHTML = '';
+  tipsBlock.innerHTML = '';
+
+  if (d.flavor_notes || d.tips) {
+    $('flavorSection').style.display = '';
+    if (d.flavor_notes) {
+      const cls = isInf('flavor_notes') ? 'flavor-text inferred' : 'flavor-text';
+      flavorBlock.innerHTML = `<div class="section-title">风味描述${isInf('flavor_notes') ? ' <span style="font-size:8px;color:var(--crema);letter-spacing:0">· AI推理</span>' : ''}</div><p class="${cls}">${esc(d.flavor_notes)}</p>`;
+    }
+    if (d.tips) {
+      tipsBlock.innerHTML = `<div class="tips-box"><div class="tips-label">冲煮技巧</div><div class="tips-text">${esc(d.tips)}</div></div>`;
+    }
+  } else {
+    $('flavorSection').style.display = 'none';
+  }
+
+  // Inferred legend
+  let legend = document.querySelector('.inferred-legend');
+  if (legend) legend.remove();
+  if (inf.size > 0) {
+    const legendEl = document.createElement('div');
+    legendEl.className = 'inferred-legend';
+    legendEl.innerHTML = `<span class="inferred-legend-dot"></span> 带 <b style="color:var(--crema)">AI推理</b> 标记的字段为原内容未提及、由 AI 根据已知参数补全`;
+    document.querySelector('.brew-card').insertBefore(legendEl, document.querySelector('.brew-footer'));
+  }
+
+  // Footer
+  const srcLink = $('sourceLink');
+  if (d.source_url) { srcLink.href = d.source_url; srcLink.style.display = ''; } else { srcLink.style.display = 'none'; }
+
+  const sel = $('modelSelect');
+  $('brewModel').textContent = sel.options[sel.selectedIndex].text;
+
+  setTimeout(() => { $('progressSection').classList.remove('active'); $('resultSection').classList.add('active'); }, 300);
+}
+
+function copyCard() {
+  if (!currentCard) return;
+  const d = currentCard;
+  const inf = new Set(d.inferred_fields || []);
+  const mark = (field, val) => inf.has(field) ? `${val} [AI推理]` : val;
+
+  let t = `☕ ${d.title}\n${d.summary}\n\n`;
+  if (d.dose || d.water_amount || d.ratio) {
+    t += `📋 冲煮参数\n`;
+    if (d.dose) t += `粉量: ${mark('dose', d.dose)}  `;
+    if (d.water_amount) t += `水量: ${mark('water_amount', d.water_amount)}  `;
+    if (d.ratio) t += `粉水比: ${mark('ratio', d.ratio)}\n`;
+    if (d.water_temp) t += `水温: ${mark('water_temp', d.water_temp)}  `;
+    if (d.grind_size) t += `研磨: ${mark('grind_size', d.grind_size)}  `;
+    if (d.total_time) t += `时间: ${mark('total_time', d.total_time)}`;
+    t += '\n\n';
+  }
+  if (d.dripper || d.origin) {
+    if (d.dripper) t += `滤杯: ${mark('dripper', d.dripper)}  `;
+    if (d.origin) t += `产地: ${mark('origin', d.origin)}  `;
+    if (d.roast_level) t += `烘焙: ${mark('roast_level', d.roast_level)}`;
+    t += '\n\n';
+  }
+  if (d.pour_steps?.length) {
+    t += `💧 注水步骤\n`;
+    d.pour_steps.forEach(s => { t += `${s.time || ''} ${s.stage || ''} ${s.water_ml || ''} ${s.technique || ''}\n`; });
+    t += '\n';
+  }
+  if (d.flavor_notes) t += `🍊 风味: ${mark('flavor_notes', d.flavor_notes)}\n`;
+  if (d.tips) t += `💡 技巧: ${d.tips}\n`;
+  if (d.source_url) t += `\n原文: ${d.source_url}`;
+
+  navigator.clipboard.writeText(t).then(() => {
+    const btn = document.querySelector('.copy-btn');
+    btn.textContent = '已复制'; setTimeout(() => btn.textContent = '复制方案', 1500);
+  });
+}
+
+// Auto-resize
+document.querySelectorAll('textarea').forEach(el => {
+  el.addEventListener('input', () => { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; });
+});
+
+// Shortcuts
+document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); handleSubmit(); }
+  if (e.key === 'Escape') closeSettings();
+});
+
+// Settings
+function openSettings() { $('settingsOverlay').classList.add('active'); loadSettings(); }
+function closeSettings() { $('settingsOverlay').classList.remove('active'); }
+
+async function loadSettings() {
+  try {
+    const res = await fetch('/api/settings');
+    const data = await res.json();
+    const status = $('settingsStatus');
+    const statusText = $('settingsStatusText');
+    if (data.api_key_set) {
+      status.className = 'settings-status ok';
+      statusText.textContent = '已配置 — ' + data.api_key_masked;
+    } else {
+      status.className = 'settings-status missing';
+      statusText.textContent = '未配置 API Key';
+    }
+    $('baseUrlInput').value = data.base_url || 'https://api.jiekou.ai/openai/v1';
+    $('apiKeyInput').value = '';
+    $('apiKeyInput').placeholder = data.api_key_set ? '已保存，重新输入可覆盖' : 'sk-xxx...';
+  } catch (e) {}
+}
+
+async function saveSettings() {
+  const apiKey = $('apiKeyInput').value.trim();
+  const baseUrl = $('baseUrlInput').value.trim();
+  if (!apiKey) { $('apiKeyInput').focus(); showToast('请填写 API Key'); return; }
+  try {
+    const res = await fetch('/api/settings', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ api_key: apiKey, base_url: baseUrl }),
+    });
+    const data = await res.json();
+    if (data.error) { showToast(data.error); return; }
+    showToast('配置已保存');
+    loadSettings();
+    setTimeout(closeSettings, 800);
+  } catch (e) { showToast('保存失败'); }
+}
+
+function showToast(msg) {
+  const t = $('toast'); t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+(async () => {
+  try {
+    const res = await fetch('/api/settings');
+    const data = await res.json();
+    if (!data.api_key_set) setTimeout(openSettings, 500);
+  } catch (e) {}
+})();
+</script>
+</body>
+</html>

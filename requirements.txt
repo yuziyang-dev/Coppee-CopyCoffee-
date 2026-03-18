@@ -1,0 +1,14 @@
+requests>=2.31.0
+python-dotenv>=1.0.0
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+
+# 本地语音识别（免费，无需API Key）
+# pip install openai-whisper
+# 注意：首次运行会自动下载模型（约140MB for base）
+
+# 中文OCR（免费，无需API Key）
+# pip install paddleocr paddlepaddle
+
+# 腾讯云ASR（可选，需API Key）
+# pip install tencentcloud-sdk-python
