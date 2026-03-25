@@ -22,4 +22,4 @@ ENV TEMP_DIR=/app/temp \
 
 EXPOSE 7860
 
-CMD ["python", "-m", "uvicorn", "get_notes.web:app", "--host", "0.0.0.0", "--port", "7860"]
+CMD ["python", "start.py"]
