@@ -17,7 +17,8 @@ RUN mkdir -p /app/temp /app/output && chown -R appuser:appuser /app
 
 USER appuser
 
-ENV TEMP_DIR=/app/temp \
+ENV PYTHONUNBUFFERED=1 \
+    TEMP_DIR=/app/temp \
     OUTPUT_DIR=/app/output
 
 EXPOSE 7860
