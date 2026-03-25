@@ -156,6 +156,35 @@ async def stream_progress(task_id: str):
 ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
 
 
+def _try_write_env(key_map: dict[str, str]):
+    """Best-effort write to .env; silently skip if read-only filesystem."""
+    try:
+        lines = []
+        if ENV_PATH.exists():
+            lines = ENV_PATH.read_text(encoding="utf-8").splitlines()
+
+        found_keys: set[str] = set()
+        new_lines = []
+        for line in lines:
+            updated = False
+            for k, v in key_map.items():
+                if line.startswith(f"{k}=") or line.startswith(f"{k} ="):
+                    new_lines.append(f"{k}={v}")
+                    found_keys.add(k)
+                    updated = True
+                    break
+            if not updated:
+                new_lines.append(line)
+
+        for k, v in key_map.items():
+            if k not in found_keys:
+                new_lines.append(f"{k}={v}")
+
+        ENV_PATH.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+    except OSError:
+        pass
+
+
 @app.get("/api/settings")
 async def get_settings():
     """返回当前配置（API Key 脱敏显示）"""
@@ -172,7 +201,7 @@ async def get_settings():
 
 @app.post("/api/settings")
 async def save_settings(request: Request):
-    """保存 API Key 到 .env 并热更新运行时配置"""
+    """保存 API Key 并热更新运行时配置"""
     global notes_app
     body = await request.json()
     api_key = body.get("api_key", "").strip()
@@ -184,32 +213,8 @@ async def save_settings(request: Request):
     if not base_url:
         base_url = "https://api.jiekou.ai/openai/v1"
 
-    # 读取现有 .env 内容，更新对应行
-    lines = []
-    if ENV_PATH.exists():
-        lines = ENV_PATH.read_text(encoding="utf-8").splitlines()
+    _try_write_env({"LLM_API_KEY": api_key, "LLM_BASE_URL": base_url})
 
-    key_map = {"LLM_API_KEY": api_key, "LLM_BASE_URL": base_url}
-    found_keys = set()
-    new_lines = []
-    for line in lines:
-        updated = False
-        for k, v in key_map.items():
-            if line.startswith(f"{k}=") or line.startswith(f"{k} ="):
-                new_lines.append(f"{k}={v}")
-                found_keys.add(k)
-                updated = True
-                break
-        if not updated:
-            new_lines.append(line)
-
-    for k, v in key_map.items():
-        if k not in found_keys:
-            new_lines.append(f"{k}={v}")
-
-    ENV_PATH.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
-
-    # 热更新运行时配置
     app_inst = get_notes_app()
     app_inst.config.llm.api_key = api_key
     app_inst.config.llm.base_url = base_url
@@ -220,6 +225,12 @@ async def save_settings(request: Request):
 @app.get("/", response_class=HTMLResponse)
 async def index():
     html_path = STATIC_DIR / "index.html"
+    return HTMLResponse(html_path.read_text(encoding="utf-8"))
+
+
+@app.get("/retro", response_class=HTMLResponse)
+async def index_retro():
+    html_path = STATIC_DIR / "index-retro.html"
     return HTMLResponse(html_path.read_text(encoding="utf-8"))
 
 

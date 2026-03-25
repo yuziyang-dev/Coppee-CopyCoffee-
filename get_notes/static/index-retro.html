@@ -1,0 +1,671 @@
+<html lang="zh-CN"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pour-over Recipe Parser</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Special+Elite&family=VT323&display=swap');
+
+:root {
+  --bg-blue: #e0e5eb;
+  --bg-paper: #ece7da;
+  --ink-main: #2b2b2b;
+  --ink-faded: rgba(43,43,43,0.6);
+  --ink-blue: #325886;
+  --grid-line: rgba(43,43,43,0.10);
+  --ai-blue: #4a7ab5;
+  --err-red: #a04030;
+  --ok-green: #4a7a50;
+  --font-typewriter: 'Special Elite', 'Courier Prime', Courier, monospace;
+  --font-dotmatrix: 'VT323', monospace;
+  --font-hand: 'Caveat', cursive;
+  --noise-url: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.08'/%3E%3C/svg%3E");
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+
+body{
+  background-color:var(--ink-main);color:var(--ink-main);font-family:var(--font-typewriter);
+  line-height:1.4;height:100vh;display:flex;overflow:hidden;-webkit-font-smoothing:antialiased;
+}
+
+.layout-container{display:flex;width:100%;height:100%}
+
+/* ─── Left Panel ─── */
+.panel-input{
+  flex:0 0 32%;background-color:var(--bg-blue);background-image:var(--noise-url);
+  border-right:1px solid var(--grid-line);padding:2.5rem;
+  display:flex;flex-direction:column;position:relative;z-index:2;overflow-y:auto;
+}
+
+.handwritten-title{font-family:var(--font-hand);font-size:2.5rem;transform:rotate(-3deg);margin-bottom:2rem;line-height:1.1;opacity:.9}
+.input-group{margin-bottom:1.5rem;position:relative}
+.input-label{display:block;font-family:var(--font-dotmatrix);font-size:1.2rem;letter-spacing:.05em;margin-bottom:.5rem;text-transform:uppercase}
+
+.url-textarea,.instruction-textarea{
+  width:100%;background:transparent;border:1px solid var(--ink-faded);
+  font-family:var(--font-typewriter);font-size:.9rem;color:var(--ink-main);
+  padding:1rem;resize:none;outline:none;transition:border-color .2s;
+  overflow:auto;scrollbar-width:none;-ms-overflow-style:none;
+}
+.url-textarea::-webkit-scrollbar,.instruction-textarea::-webkit-scrollbar{display:none}
+.url-textarea{height:100px}
+.instruction-textarea{height:50px;font-size:.8rem}
+.url-textarea:focus,.instruction-textarea:focus{border-color:var(--ink-main);background:rgba(255,255,255,.1)}
+
+.controls-row{display:flex;align-items:center;gap:12px;margin-bottom:1.5rem}
+
+.model-select{
+  appearance:none;-webkit-appearance:none;flex:1;
+  background:transparent;border:1px solid var(--ink-faded);
+  font-family:var(--font-dotmatrix);font-size:1rem;color:var(--ink-main);
+  padding:6px 10px;cursor:pointer;outline:none;letter-spacing:.03em;
+}
+.model-select option{background:var(--bg-blue);font-family:var(--font-dotmatrix)}
+
+.action-btn{
+  background:transparent;border:2px solid var(--ink-main);font-family:var(--font-dotmatrix);
+  font-size:1.3rem;color:var(--ink-main);padding:.4rem 1.5rem;cursor:pointer;
+  text-transform:uppercase;letter-spacing:.1em;transition:all .1s;white-space:nowrap;
+}
+.action-btn:hover{background:var(--ink-main);color:var(--bg-blue);transform:translate(-2px,-2px);box-shadow:4px 4px 0 var(--ink-faded)}
+.action-btn:active{transform:translate(0,0);box-shadow:none}
+.action-btn:disabled{opacity:.3;cursor:not-allowed;transform:none;box-shadow:none}
+
+/* ─── Progress ─── */
+.progress-block{display:none;margin-bottom:1.5rem;font-family:var(--font-dotmatrix);font-size:1rem;line-height:1.8}
+.progress-block.active{display:block}
+.progress-block::before{content:'> PROCESSING...';display:block;margin-bottom:6px;opacity:.5;font-size:.9rem}
+.step-list{list-style:none;padding:0}
+.step-item{display:flex;align-items:center;gap:8px;color:var(--ink-faded);transition:color .3s}
+.step-item.active{color:var(--ink-main)}
+.step-item.done{color:var(--ok-green)}
+.step-marker{font-size:1.2rem;width:16px;text-align:center}
+.step-item .step-marker::after{content:'○'}
+.step-item.active .step-marker::after{content:'▸';animation:blink .8s step-end infinite}
+.step-item.done .step-marker::after{content:'✓'}
+@keyframes blink{50%{opacity:0}}
+
+/* ─── Error ─── */
+.error-block{display:none;font-family:var(--font-dotmatrix);font-size:1rem;color:var(--err-red);padding:10px;border:1px dashed var(--err-red);margin-bottom:1rem;line-height:1.5}
+.error-block.active{display:block}
+.error-block::before{content:'ERROR: '}
+
+/* ─── Settings Link ─── */
+.settings-link{
+  margin-top:auto;font-family:var(--font-dotmatrix);font-size:.9rem;
+  color:var(--ink-faded);cursor:pointer;text-decoration:none;
+  border-bottom:1px dashed var(--ink-faded);align-self:flex-start;
+  text-transform:uppercase;letter-spacing:.05em;transition:color .2s;
+}
+.settings-link:hover{color:var(--ink-main)}
+
+/* ─── Postage Stamp Deco ─── */
+.postage-stamp{
+  position:absolute;top:2.5rem;right:2.5rem;width:80px;height:90px;
+  background-color:#f4f0e6;border:1px solid #ccc;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  -webkit-mask-image:radial-gradient(circle at 5px 5px,transparent 4px,black 4.5px);
+  -webkit-mask-size:10px 10px;-webkit-mask-position:-5px -5px;
+  padding:10px;transform:rotate(4deg);opacity:.9;
+}
+.postage-stamp .stamp-icon{width:100%;height:60px;background:var(--ink-faded);display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px}
+.stamp-text{font-size:.5rem;margin-top:4px;text-align:center;line-height:1}
+
+/* ─── Circular Deco ─── */
+.circle-deco{
+  position:absolute;bottom:40px;left:40px;width:120px;height:120px;border-radius:50%;
+  border:2px solid var(--ink-faded);display:flex;align-items:center;justify-content:center;
+  transform:rotate(-20deg);opacity:.3;pointer-events:none;
+}
+
+/* ─── Right Panel ─── */
+.panel-output{
+  flex:1;background-color:var(--bg-paper);
+  background-image:radial-gradient(var(--grid-line) 1px,transparent 0),var(--noise-url);
+  background-size:8px 8px,100px 100px;
+  padding:3rem;display:flex;flex-direction:column;align-items:center;overflow-y:auto;position:relative;
+}
+
+/* ─── Empty State ─── */
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;opacity:.5;text-align:center}
+.empty-state p{font-family:var(--font-dotmatrix);font-size:1.5rem;margin-top:1rem}
+
+/* ─── Recipe Document ─── */
+.recipe-document{width:100%;max-width:900px;position:relative;display:none}
+.recipe-document.visible{display:block;animation:typeIn .4s ease-out}
+@keyframes typeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+
+.doc-header{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:1rem;border-bottom:2px solid var(--ink-main);padding-bottom:.5rem;position:relative}
+.main-title{font-family:var(--font-dotmatrix);font-size:2rem;letter-spacing:.05em;line-height:.9}
+.doc-summary{font-family:var(--font-typewriter);font-size:.75rem;color:var(--ink-faded);margin-top:6px;line-height:1.5}
+.oval-badge{border:2px solid var(--ink-main);border-radius:50%;padding:4px 14px;font-size:.7rem;font-weight:bold;letter-spacing:.1em;transform:rotate(-5deg);flex-shrink:0}
+
+.round-stamp{
+  position:absolute;top:-20px;right:-40px;width:90px;height:90px;
+  border:2px solid var(--ink-faded);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;text-align:center;
+  font-size:.55rem;transform:rotate(15deg);opacity:.6;pointer-events:none;
+}
+.round-stamp-inner{position:absolute;inset:3px;border:1px dashed var(--ink-faded);border-radius:50%}
+.round-stamp-text{transform:rotate(-15deg);font-family:var(--font-dotmatrix);letter-spacing:.05em}
+
+.hand-annotation{position:absolute;font-family:var(--font-hand);font-size:2rem;color:var(--ink-main);top:30px;left:-20px;transform:rotate(-10deg);pointer-events:none;opacity:.7}
+
+/* ─── Ledger Tables ─── */
+.ledger-content-wrap{position:relative;z-index:1}
+.section-label{font-family:var(--font-dotmatrix);font-size:.9rem;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-faded);margin-bottom:8px;margin-top:1.5rem}
+.ledger-block{margin-bottom:1.5rem;border-bottom:1px solid var(--ink-main)}
+.ledger-row{display:flex;border-top:1px solid var(--grid-line)}
+.ledger-row.header-row{border-top:1px solid var(--ink-main);font-size:.75rem;color:var(--ink-faded)}
+.cell{padding:.4rem .5rem;border-right:1px solid var(--grid-line);display:flex;align-items:center}
+.cell:last-child{border-right:none}
+.col-meta{flex:0 0 120px;font-weight:bold}
+.col-value{flex:1}
+.col-time{flex:0 0 90px}
+.col-weight{flex:0 0 120px}
+.col-action{flex:1}
+
+/* AI Inferred */
+.cell.inferred{color:var(--ai-blue);position:relative}
+.cell.inferred::after{content:'AI';font-family:var(--font-hand);font-size:1rem;position:absolute;top:-2px;right:4px;color:var(--ai-blue);opacity:.7}
+.ai-legend{font-family:var(--font-dotmatrix);font-size:.8rem;color:var(--ink-faded);margin-top:8px;display:none}
+.ai-legend.visible{display:block}
+.ai-legend::before{content:'* ';color:var(--ai-blue)}
+
+/* ─── Info Tags ─── */
+.info-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;margin-bottom:1rem}
+.info-chip{
+  font-family:var(--font-typewriter);font-size:.7rem;padding:3px 10px;
+  border:1px solid var(--grid-line);display:inline-flex;align-items:center;gap:4px;
+}
+.info-chip .chip-key{font-family:var(--font-dotmatrix);text-transform:uppercase;font-size:.75rem;opacity:.5}
+.info-chip.inferred{border-style:dashed;border-color:var(--ai-blue);color:var(--ai-blue)}
+
+/* ─── Flavor/Tips ─── */
+.flavor-block{margin-bottom:1rem}
+.flavor-text{font-family:var(--font-typewriter);font-size:.8rem;color:var(--ink-faded);line-height:1.6;font-style:italic}
+.tips-box{font-family:var(--font-typewriter);font-size:.75rem;color:var(--ink-faded);line-height:1.6;padding:8px 12px;border-left:3px solid var(--grid-line);margin-top:8px}
+
+/* ─── Card Footer ─── */
+.doc-footer{display:flex;justify-content:space-between;align-items:center;margin-top:1.5rem;padding-top:1rem;border-top:2px solid var(--ink-main)}
+.doc-footer-left{display:flex;align-items:center;gap:12px}
+.source-link{font-family:var(--font-dotmatrix);font-size:.8rem;color:var(--ink-faded);text-decoration:none;border-bottom:1px dashed var(--ink-faded)}
+.source-link:hover{color:var(--ink-main)}
+.model-badge{font-family:var(--font-dotmatrix);font-size:.7rem;color:var(--ink-faded);padding:2px 6px;border:1px solid var(--grid-line)}
+.copy-btn{
+  background:transparent;border:1px solid var(--ink-main);font-family:var(--font-dotmatrix);
+  font-size:1rem;color:var(--ink-main);padding:4px 14px;cursor:pointer;
+  text-transform:uppercase;letter-spacing:.08em;transition:all .1s;
+}
+.copy-btn:hover{background:var(--ink-main);color:var(--bg-paper)}
+
+/* ─── Blue Sketch Deco ─── */
+.blue-sketch{position:absolute;bottom:0;right:-50px;width:300px;height:200px;pointer-events:none;opacity:.8;z-index:0}
+.blue-sketch path{fill:none;stroke:var(--ink-blue);stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+
+/* ─── Settings Modal ─── */
+.settings-overlay{
+  position:fixed;inset:0;background:rgba(43,43,43,.7);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+  z-index:100;display:none;align-items:center;justify-content:center;
+}
+.settings-overlay.active{display:flex}
+.settings-panel{
+  background:var(--bg-paper);background-image:var(--noise-url);border:2px solid var(--ink-main);
+  width:90%;max-width:400px;padding:2rem;position:relative;
+  animation:typeIn .3s ease-out;
+}
+.settings-close{position:absolute;top:10px;right:14px;border:none;background:none;cursor:pointer;color:var(--ink-main);font-size:1.5rem;font-family:var(--font-dotmatrix)}
+.settings-close:hover{opacity:.6}
+.settings-title{font-family:var(--font-dotmatrix);font-size:1.5rem;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px}
+.settings-desc{font-family:var(--font-typewriter);font-size:.75rem;color:var(--ink-faded);margin-bottom:1.2rem;line-height:1.5}
+.settings-desc a{color:var(--ink-blue);text-decoration:none;border-bottom:1px solid var(--ink-blue)}
+.settings-status{display:flex;align-items:center;gap:7px;margin-bottom:1rem;font-family:var(--font-dotmatrix);font-size:.9rem;padding:6px 10px;border:1px solid var(--grid-line)}
+.settings-status.ok{color:var(--ok-green);border-color:var(--ok-green)}
+.settings-status.missing{color:var(--err-red);border-color:var(--err-red)}
+.field-group{margin-bottom:12px}
+.field-label{font-family:var(--font-dotmatrix);font-size:.9rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+.field-input{
+  width:100%;padding:8px;border:1px solid var(--ink-faded);background:transparent;
+  font-family:var(--font-typewriter);font-size:.8rem;color:var(--ink-main);outline:none;
+}
+.field-input:focus{border-color:var(--ink-main);background:rgba(255,255,255,.1)}
+.field-hint{font-size:.65rem;color:var(--ink-faded);margin-top:3px;font-family:var(--font-typewriter)}
+.settings-save{
+  width:100%;padding:8px;background:var(--ink-main);color:var(--bg-paper);border:none;
+  font-family:var(--font-dotmatrix);font-size:1.2rem;cursor:pointer;text-transform:uppercase;letter-spacing:.1em;
+  transition:opacity .2s;
+}
+.settings-save:hover{opacity:.8}
+
+/* ─── Toast ─── */
+.toast{
+  position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(16px);
+  background:var(--ink-main);color:var(--bg-paper);padding:8px 20px;
+  font-family:var(--font-dotmatrix);font-size:1rem;
+  opacity:0;transition:all .3s;z-index:200;pointer-events:none;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ─── Responsive ─── */
+@media(max-width:900px){
+  .layout-container{flex-direction:column}
+  .panel-input{flex:none;height:auto;min-height:auto;padding:1.5rem}
+  .panel-output{min-height:60vh}
+  .handwritten-title{font-size:2rem;margin-bottom:1.5rem}
+  .postage-stamp,.circle-deco{display:none}
+  .round-stamp{display:none}
+  .col-meta{flex:0 0 90px}
+}
+</style>
+</head>
+<body>
+
+<div class="layout-container">
+
+  <!-- Left: Input Panel -->
+  <aside class="panel-input">
+    <h1 class="handwritten-title">AI Recipe<br>Extraction Tool</h1>
+
+    <div class="input-group">
+      <label class="input-label">Source Link</label>
+      <textarea id="linkInput" class="url-textarea" placeholder="粘贴小红书 / 抖音链接..."></textarea>
+    </div>
+
+    <div class="input-group">
+      <label class="input-label">Instructions (optional)</label>
+      <textarea id="instructionInput" class="instruction-textarea" placeholder="补充要求..."></textarea>
+    </div>
+
+    <div class="controls-row">
+      <select id="modelSelect" class="model-select">
+        <optgroup label="推荐">
+          <option value="deepseek/deepseek-v3-0324">DeepSeek V3</option>
+          <option value="deepseek/deepseek-r1-0528">DeepSeek R1</option>
+        </optgroup>
+        <optgroup label="通用">
+          <option value="qwen/qwen3-235b-a22b-instruct-2507" selected>Qwen3 235B</option>
+          <option value="moonshotai/kimi-k2-instruct">Kimi K2</option>
+          <option value="openai/gpt-4o">GPT-4o</option>
+          <option value="anthropic/claude-sonnet-4-20250514">Claude Sonnet 4</option>
+        </optgroup>
+      </select>
+      <button id="submitBtn" class="action-btn" onclick="handleSubmit()">Extract</button>
+    </div>
+
+    <!-- Progress -->
+    <div id="progressBlock" class="progress-block">
+      <ul class="step-list">
+        <li id="step-parse" class="step-item"><span class="step-marker"></span> 解析链接</li>
+        <li id="step-process" class="step-item"><span class="step-marker"></span> 提取音频/图文</li>
+        <li id="step-aggregate" class="step-item"><span class="step-marker"></span> 聚合文本</li>
+        <li id="step-summarize" class="step-item"><span class="step-marker"></span> AI 精准提取</li>
+        <li id="step-infer" class="step-item"><span class="step-marker"></span> AI 智能补全</li>
+      </ul>
+    </div>
+
+    <!-- Error -->
+    <div id="errorBlock" class="error-block"></div>
+
+    <!-- Decorations -->
+    <div class="postage-stamp">
+      <div class="stamp-icon">V60</div>
+      <div class="stamp-text">BREW<br>2026</div>
+    </div>
+
+    <div class="circle-deco">
+      <svg viewBox="0 0 100 100" style="width:90px;height:90px">
+        <path id="curve" d="M 10 50 A 40 40 0 1 1 90 50 A 40 40 0 1 1 10 50" fill="transparent"/>
+        <text font-family="monospace" font-size="11" fill="var(--ink-main)">
+          <textPath href="#curve" startOffset="10%">SYSTEM PARSER V1.0 - AUDIO VISUAL -</textPath>
+        </text>
+      </svg>
+    </div>
+
+    <!-- Settings -->
+    <a class="settings-link" onclick="openSettings()">⚙ API Settings</a>
+  </aside>
+
+  <!-- Right: Output Panel -->
+  <main class="panel-output">
+
+    <!-- Empty State -->
+    <div id="emptyState" class="empty-state">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <p>AWAITING INPUT DATA</p>
+    </div>
+
+    <!-- Recipe Document -->
+    <div id="recipeDoc" class="recipe-document">
+      <header class="doc-header">
+        <div>
+          <h2 id="docTitle" class="main-title"></h2>
+          <p id="docSummary" class="doc-summary"></p>
+        </div>
+        <div id="docBadge" class="oval-badge"></div>
+        <div class="round-stamp">
+          <div class="round-stamp-inner"></div>
+          <span class="round-stamp-text">EXTRACTED<br>SUCCESS</span>
+        </div>
+      </header>
+
+      <span class="hand-annotation">Verified</span>
+
+      <div class="ledger-content-wrap">
+        <!-- Parameters Table -->
+        <div class="section-label">Parameters</div>
+        <div id="paramsTable" class="ledger-block"></div>
+
+        <!-- Info Tags -->
+        <div id="infoSection" style="display:none">
+          <div class="section-label">Bean & Equipment</div>
+          <div id="infoTags" class="info-tags"></div>
+        </div>
+
+        <!-- Pour Steps Table -->
+        <div id="stepsSection" style="display:none">
+          <div class="section-label">Pour Stages</div>
+          <div id="stepsTable" class="ledger-block"></div>
+        </div>
+
+        <!-- Flavor / Tips -->
+        <div id="flavorSection" style="display:none">
+          <div id="flavorBlock" class="flavor-block"></div>
+          <div id="tipsBlock"></div>
+        </div>
+
+        <!-- AI Legend -->
+        <div id="aiLegend" class="ai-legend">带 AI 标记的字段为推理补全，非原文提取</div>
+      </div>
+
+      <!-- Footer -->
+      <div class="doc-footer">
+        <div class="doc-footer-left">
+          <a id="sourceLink" class="source-link" href="#" target="_blank">Source</a>
+          <span id="modelBadge" class="model-badge"></span>
+        </div>
+        <button class="copy-btn" onclick="copyCard()">Copy</button>
+      </div>
+
+      <!-- Blue Sketch Deco -->
+      <svg class="blue-sketch" viewBox="0 0 300 200">
+        <path d="M 50 180 C 80 170, 100 120, 150 140 C 200 160, 220 100, 260 120"/>
+        <path d="M 60 190 C 90 180, 110 140, 160 150 C 210 160, 230 110, 270 130" stroke-dasharray="4 4"/>
+        <path d="M 120 120 C 130 90, 160 80, 140 50 C 130 30, 160 20, 180 40"/>
+        <path d="M 180 130 C 190 100, 220 90, 200 60 C 190 40, 220 30, 240 50" opacity="0.5"/>
+        <text x="200" y="180" font-family="var(--font-hand)" font-size="16" fill="var(--ink-blue)" stroke="none">Aroma notes...</text>
+      </svg>
+    </div>
+  </main>
+</div>
+
+<!-- Settings Modal -->
+<div id="settingsOverlay" class="settings-overlay" onclick="if(event.target===this)closeSettings()">
+  <div class="settings-panel">
+    <button class="settings-close" onclick="closeSettings()">×</button>
+    <div class="settings-title">API Settings</div>
+    <div class="settings-desc">填入 <a href="https://jiekou.ai/settings/key-management" target="_blank">JieKou AI</a> API Key 以启用 AI 方案提取</div>
+    <div id="settingsStatus" class="settings-status missing">
+      <span id="settingsStatusText">未配置</span>
+    </div>
+    <div class="field-group">
+      <div class="field-label">API Key</div>
+      <input id="apiKeyInput" class="field-input" type="password" placeholder="sk-xxx..." autocomplete="off">
+    </div>
+    <div class="field-group">
+      <div class="field-label">Base URL</div>
+      <input id="baseUrlInput" class="field-input" type="text" value="https://api.jiekou.ai/openai/v1">
+      <div class="field-hint">默认 JieKou AI，可改为其他 OpenAI 兼容服务</div>
+    </div>
+    <button class="settings-save" onclick="saveSettings()">Save</button>
+  </div>
+</div>
+<div id="toast" class="toast"></div>
+
+<script>
+const $=id=>document.getElementById(id);
+const STEPS=['parse','process','aggregate','summarize','infer'];
+let currentCard=null;
+
+function resetUI(){
+  $('progressBlock').classList.remove('active');
+  $('errorBlock').classList.remove('active');
+  $('errorBlock').textContent='';
+  STEPS.forEach(s=>{const el=$('step-'+s);el.classList.remove('active','done')});
+}
+
+function setStep(step){
+  const idx=STEPS.indexOf(step);
+  STEPS.forEach((s,i)=>{
+    const el=$('step-'+s);el.classList.remove('active','done');
+    if(i<idx) el.classList.add('done');
+    else if(i===idx) el.classList.add('active');
+  });
+}
+
+function markAllDone(){STEPS.forEach(s=>{$('step-'+s).classList.remove('active');$('step-'+s).classList.add('done')})}
+
+async function handleSubmit(){
+  const link=$('linkInput').value.trim();
+  if(!link){$('linkInput').focus();return}
+  const instruction=$('instructionInput').value.trim();
+  const model=$('modelSelect').value;
+  const btn=$('submitBtn');
+
+  resetUI();
+  btn.disabled=true;btn.textContent='...';
+  $('progressBlock').classList.add('active');
+  setStep('parse');
+
+  try{
+    const res=await fetch('/api/process',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({link,instruction:instruction||'',model}),
+    });
+    const{task_id,error}=await res.json();
+    if(error) throw new Error(error);
+
+    const evtSource=new EventSource('/api/stream/'+task_id);
+    evtSource.onmessage=(e)=>{
+      const event=JSON.parse(e.data);
+      if(event.type==='progress'){
+        if(event.step==='done') markAllDone();
+        else if(event.step!=='start') setStep(event.step);
+      }
+      if(event.type==='result'){currentCard=event.data;renderCard(event.data)}
+      if(event.type==='error'){
+        $('errorBlock').textContent=event.message;
+        $('errorBlock').classList.add('active');
+        $('progressBlock').classList.remove('active');
+        evtSource.close();btn.disabled=false;btn.textContent='Extract';
+      }
+      if(event.type==='end'){evtSource.close();btn.disabled=false;btn.textContent='Extract'}
+    };
+    evtSource.onerror=()=>{evtSource.close();btn.disabled=false;btn.textContent='Extract'};
+  }catch(err){
+    $('errorBlock').textContent=err.message;
+    $('errorBlock').classList.add('active');
+    $('progressBlock').classList.remove('active');
+    btn.disabled=false;btn.textContent='Extract';
+  }
+}
+
+function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}
+
+function renderCard(d){
+  const inf=new Set(d.inferred_fields||[]);
+  const isInf=f=>inf.has(f);
+
+  const platforms={xiaohongshu:'XHS',douyin:'DY'};
+  $('docTitle').textContent=d.title||'POUR-OVER PARAMS';
+  $('docSummary').textContent=d.summary||'';
+  $('docBadge').textContent=(platforms[d.source_platform]||'')+(d.author?' · @'+d.author:'');
+
+  // Params table
+  const paramRows=[
+    {k:'BEANS',v:d.bean_name,f:'bean_name'},
+    {k:'ORIGIN',v:d.origin,f:'origin'},
+    {k:'ROAST',v:d.roast_level,f:'roast_level'},
+    {k:'PROCESS',v:d.process,f:'process'},
+    {k:'DOSE',v:d.dose,f:'dose'},
+    {k:'WATER',v:d.water_amount,f:'water_amount'},
+    {k:'RATIO',v:d.ratio,f:'ratio'},
+    {k:'TEMP',v:d.water_temp,f:'water_temp'},
+    {k:'GRIND',v:d.grind_size,f:'grind_size'},
+    {k:'TIME',v:d.total_time,f:'total_time'},
+  ].filter(r=>r.v);
+
+  const pt=$('paramsTable');
+  pt.innerHTML='<div class="ledger-row header-row"><div class="cell col-meta">Parameter</div><div class="cell col-value">Extracted Value</div></div>';
+  paramRows.forEach(r=>{
+    const cls=isInf(r.f)?'cell col-value inferred':'cell col-value';
+    pt.innerHTML+=`<div class="ledger-row"><div class="cell col-meta">${r.k}</div><div class="${cls}">${esc(r.v)}</div></div>`;
+  });
+
+  // Info tags
+  const infoItems=[
+    {l:'Dripper',v:d.dripper,f:'dripper'},
+    {l:'Filter',v:d.filter_paper,f:'filter_paper'},
+  ].filter(x=>x.v);
+  const infoTags=$('infoTags');
+  infoTags.innerHTML='';
+  if(infoItems.length||d.equipment_notes||d.bean_notes){
+    $('infoSection').style.display='';
+    infoItems.forEach(x=>{
+      const cls=isInf(x.f)?'info-chip inferred':'info-chip';
+      infoTags.innerHTML+=`<span class="${cls}"><span class="chip-key">${x.l}</span> ${esc(x.v)}</span>`;
+    });
+    if(d.equipment_notes) infoTags.innerHTML+=`<span class="info-chip">${esc(d.equipment_notes)}</span>`;
+    if(d.bean_notes){
+      const cls=isInf('bean_notes')?'info-chip inferred':'info-chip';
+      infoTags.innerHTML+=`<span class="${cls}">${esc(d.bean_notes)}</span>`;
+    }
+  }else{$('infoSection').style.display='none'}
+
+  // Pour steps
+  const normalizeStep=s=>({
+    stage:s.stage||s['阶段']||'',water_ml:s.water_ml||s['水量']||'',
+    time:s.time||s['时间']||'',technique:s.technique||s['手法']||'',
+    _inferred:s._inferred||[],
+  });
+  const steps=(d.pour_steps||[]).map(normalizeStep).filter(s=>s.stage||s.water_ml||s.time||s.technique);
+  const st=$('stepsTable');
+  st.innerHTML='';
+  if(steps.length){
+    $('stepsSection').style.display='';
+    st.innerHTML='<div class="ledger-row header-row"><div class="cell col-time">Time</div><div class="cell col-weight">Water</div><div class="cell col-action">Action</div></div>';
+    steps.forEach(s=>{
+      const timeInf=s._inferred.includes('time');
+      const timeCls=timeInf?'cell col-time inferred':'cell col-time';
+      st.innerHTML+=`<div class="ledger-row"><div class="${timeCls}">${esc(s.time)}</div><div class="cell col-weight">${esc(s.water_ml)}</div><div class="cell col-action"><strong>${esc(s.stage)}</strong> ${esc(s.technique)}</div></div>`;
+    });
+  }else{$('stepsSection').style.display='none'}
+
+  // Flavor & Tips
+  const flavorBlock=$('flavorBlock');
+  const tipsBlock=$('tipsBlock');
+  flavorBlock.innerHTML='';tipsBlock.innerHTML='';
+  if(d.flavor_notes||d.tips){
+    $('flavorSection').style.display='';
+    if(d.flavor_notes){
+      const label=isInf('flavor_notes')?'Flavor <span style="color:var(--ai-blue);font-family:var(--font-hand);font-size:1rem">AI</span>':'Flavor';
+      flavorBlock.innerHTML=`<div class="section-label">${label}</div><p class="flavor-text">${esc(d.flavor_notes)}</p>`;
+    }
+    if(d.tips){
+      tipsBlock.innerHTML=`<div class="section-label">Tips</div><div class="tips-box">${esc(d.tips)}</div>`;
+    }
+  }else{$('flavorSection').style.display='none'}
+
+  // AI legend
+  $('aiLegend').className=inf.size>0?'ai-legend visible':'ai-legend';
+
+  // Footer
+  const srcLink=$('sourceLink');
+  if(d.source_url){srcLink.href=d.source_url;srcLink.style.display=''}else{srcLink.style.display='none'}
+  $('modelBadge').textContent=$('modelSelect').options[$('modelSelect').selectedIndex].text;
+
+  // Show document
+  $('emptyState').style.display='none';
+  $('recipeDoc').classList.add('visible');
+
+  setTimeout(()=>{$('progressBlock').classList.remove('active')},300);
+}
+
+function copyCard(){
+  if(!currentCard) return;
+  const d=currentCard;
+  const inf=new Set(d.inferred_fields||[]);
+  const mark=(f,v)=>inf.has(f)?`${v} [AI]`:v;
+
+  let t=`☕ ${d.title}\n${d.summary}\n\n`;
+  if(d.dose||d.water_amount||d.ratio){
+    t+=`📋 冲煮参数\n`;
+    if(d.dose) t+=`粉量: ${mark('dose',d.dose)}  `;
+    if(d.water_amount) t+=`水量: ${mark('water_amount',d.water_amount)}  `;
+    if(d.ratio) t+=`粉水比: ${mark('ratio',d.ratio)}\n`;
+    if(d.water_temp) t+=`水温: ${mark('water_temp',d.water_temp)}  `;
+    if(d.grind_size) t+=`研磨: ${mark('grind_size',d.grind_size)}  `;
+    if(d.total_time) t+=`时间: ${mark('total_time',d.total_time)}`;
+    t+='\n\n';
+  }
+  if(d.dripper||d.origin){
+    if(d.dripper) t+=`滤杯: ${mark('dripper',d.dripper)}  `;
+    if(d.origin) t+=`产地: ${mark('origin',d.origin)}  `;
+    if(d.roast_level) t+=`烘焙: ${mark('roast_level',d.roast_level)}`;
+    t+='\n\n';
+  }
+  if(d.pour_steps?.length){
+    t+=`💧 注水步骤\n`;
+    d.pour_steps.forEach(s=>{t+=`${s.time||''} ${s.stage||''} ${s.water_ml||''} ${s.technique||''}\n`});
+    t+='\n';
+  }
+  if(d.flavor_notes) t+=`🍊 风味: ${mark('flavor_notes',d.flavor_notes)}\n`;
+  if(d.tips) t+=`💡 技巧: ${d.tips}\n`;
+  if(d.source_url) t+=`\n原文: ${d.source_url}`;
+
+  navigator.clipboard.writeText(t).then(()=>{
+    const btn=document.querySelector('.copy-btn');
+    btn.textContent='Copied';setTimeout(()=>btn.textContent='Copy',1500);
+  });
+}
+
+document.querySelectorAll('textarea').forEach(el=>{
+  el.addEventListener('input',()=>{el.style.height='auto';el.style.height=el.scrollHeight+'px'});
+});
+document.addEventListener('keydown',e=>{
+  if((e.metaKey||e.ctrlKey)&&e.key==='Enter'){e.preventDefault();handleSubmit()}
+  if(e.key==='Escape') closeSettings();
+});
+
+function openSettings(){$('settingsOverlay').classList.add('active');loadSettings()}
+function closeSettings(){$('settingsOverlay').classList.remove('active')}
+
+async function loadSettings(){
+  try{
+    const res=await fetch('/api/settings');const data=await res.json();
+    const status=$('settingsStatus');const statusText=$('settingsStatusText');
+    if(data.api_key_set){status.className='settings-status ok';statusText.textContent='已配置 — '+data.api_key_masked}
+    else{status.className='settings-status missing';statusText.textContent='未配置 API Key'}
+    $('baseUrlInput').value=data.base_url||'https://api.jiekou.ai/openai/v1';
+    $('apiKeyInput').value='';
+    $('apiKeyInput').placeholder=data.api_key_set?'已保存，重新输入可覆盖':'sk-xxx...';
+  }catch(e){}
+}
+
+async function saveSettings(){
+  const apiKey=$('apiKeyInput').value.trim();const baseUrl=$('baseUrlInput').value.trim();
+  if(!apiKey){$('apiKeyInput').focus();showToast('请填写 API Key');return}
+  try{
+    const res=await fetch('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({api_key:apiKey,base_url:baseUrl})});
+    const data=await res.json();
+    if(data.error){showToast(data.error);return}
+    showToast('配置已保存');loadSettings();setTimeout(closeSettings,800);
+  }catch(e){showToast('保存失败')}
+}
+
+function showToast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000)}
+
+(async()=>{
+  try{const res=await fetch('/api/settings');const data=await res.json();if(!data.api_key_set) setTimeout(openSettings,500)}catch(e){}
+})();
+</script>
+</body></html>

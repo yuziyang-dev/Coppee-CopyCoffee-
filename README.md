@@ -1,3 +1,13 @@
+---
+title: Brew Profile Parser
+emoji: ☕
+colorFrom: gray
+colorTo: yellow
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # Get笔记 — 链接解析与AI笔记总结
 
 通过小红书和抖音链接解析视频/图文内容，利用AI进行分析和笔记总结。

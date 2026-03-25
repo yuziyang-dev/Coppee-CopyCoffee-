@@ -24,3 +24,6 @@ output/
 *.mp3
 *.mp4
 *.wav
+
+# Design drafts
+design-*.html
