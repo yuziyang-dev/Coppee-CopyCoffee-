@@ -22,7 +22,7 @@ class ASRConfig:
 class LLMConfig:
     """大语言模型配置（兼容 OpenAI API 格式）"""
     api_key: str = field(default_factory=lambda: os.getenv("LLM_API_KEY", ""))
-    base_url: str = field(default_factory=lambda: os.getenv("LLM_BASE_URL", "https://api.openai.com/v1"))
+    base_url: str = field(default_factory=lambda: os.getenv("LLM_BASE_URL", "https://api.jiekou.ai/openai/v1"))
     model: str = field(default_factory=lambda: os.getenv("LLM_MODEL", "gpt-4o"))
     max_tokens: int = 4096
     temperature: float = 0.3
