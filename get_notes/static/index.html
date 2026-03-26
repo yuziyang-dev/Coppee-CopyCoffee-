@@ -242,6 +242,7 @@ body{
 .source-link{font-size:.65rem;color:rgba(0,0,0,.4);text-decoration:none;text-transform:uppercase;letter-spacing:.08em;border-bottom:1px dashed rgba(0,0,0,.2)}
 .source-link:hover{color:var(--text-dark)}
 .model-badge{font-size:.55rem;color:rgba(0,0,0,.3);padding:2px 8px;border-radius:4px;background:rgba(0,0,0,.04);border:1px solid rgba(0,0,0,.08);text-transform:uppercase;letter-spacing:.06em}
+.card-footer-right{display:flex;gap:8px}
 .copy-btn{appearance:none;border:var(--border-thin-dark);background:transparent;padding:6px 14px;border-radius:8px;font-size:.65rem;color:var(--text-dark);cursor:pointer;font-family:var(--font-sans);font-weight:500;letter-spacing:.06em;text-transform:uppercase;transition:all .2s}
 .copy-btn:hover{background:var(--text-dark);color:var(--card-grey)}
 
@@ -283,6 +284,7 @@ body{
   .card-content{padding:28px}
 }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 </head>
 <body>
 
@@ -382,7 +384,7 @@ body{
         <div id="aiLegend" class="ai-legend" style="display:none"><span class="ai-legend-sample"></span><span>虚线边框字段为 AI 推理补全，非原文提取</span></div>
         <div class="card-footer">
           <div class="card-footer-left"><a id="sourceLink" class="source-link" href="#" target="_blank">Source</a><span id="modelBadge" class="model-badge"></span></div>
-          <button class="copy-btn" onclick="copyCard()">Copy</button>
+          <div class="card-footer-right"><button class="copy-btn" onclick="downloadCard()">Download</button><button class="copy-btn" onclick="copyCard()">Copy</button></div>
         </div>
       </div>
     </article>
@@ -521,6 +523,31 @@ function renderCard(d){
 
   setState('done');
   setTimeout(()=>{$('progressBlock').classList.remove('active')},300);
+}
+
+async function downloadCard(){
+  if(!currentCard) return;
+  const card=$('recipeCard');
+  const content=$('cardContent');
+  const origOverflow=content.style.overflow;
+  const origHeight=content.style.maxHeight;
+  content.style.overflow='visible';
+  content.style.maxHeight='none';
+  card.style.height='auto';
+  card.style.overflow='visible';
+  try{
+    const canvas=await html2canvas(card,{backgroundColor:null,scale:2,useCORS:true});
+    const link=document.createElement('a');
+    const title=(currentCard.title||'brew-profile').replace(/[^a-zA-Z0-9\u4e00-\u9fff]/g,'_').slice(0,30);
+    link.download=title+'.png';
+    link.href=canvas.toDataURL('image/png');
+    link.click();
+  }catch(e){showToast('下载失败')}finally{
+    content.style.overflow=origOverflow;
+    content.style.maxHeight=origHeight;
+    card.style.height='';
+    card.style.overflow='';
+  }
 }
 
 function copyCard(){
