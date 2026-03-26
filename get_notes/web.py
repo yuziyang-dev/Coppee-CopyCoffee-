@@ -128,11 +128,16 @@ async def stream_progress(task_id: str):
     q = tasks[task_id]["queue"]
 
     async def event_generator():
+        idle_count = 0
         while True:
             try:
                 event = q.get_nowait()
+                idle_count = 0
             except queue.Empty:
-                await asyncio.sleep(0.3)
+                idle_count += 1
+                if idle_count % 10 == 0:
+                    yield ": heartbeat\n\n"
+                await asyncio.sleep(0.5)
                 continue
 
             yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
